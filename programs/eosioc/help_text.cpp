@@ -96,9 +96,82 @@ auto smatch_to_variant(const std::smatch& smatch) {
    return result;
 };
 
+const std::map<int64_t, std::string> error_advice = {
+        { 3120001, "Valid name should be less than 13 characters and only contains the following symbol .12345abcdefghijklmnopqrstuvwxyz"},
+        { 3120002, "Valid public key is encoded in base58 and starts with EOS prefix"},
+        { 3120003, "Valid authority should be in the following format:\n"
+                   "{\n"
+                   "  \"threshold\":\"uint32_t\",\n"
+                   "  \"keys\":[{ \"key\":\"public_key\", \"weight\":\"uint16_t\" }],\n"
+                   "  \"accounts\":[{\n"
+                   "    \"permission\":{ \"actor\":\"account_name\", \"permission\":\"permission_name\" },\n"
+                   "    \"weight\":\"uint16_t\n"
+                   "  }]\n"
+                   "}"},
+        { 3120004, "Valid action should be in the following format:\n"
+                   "{\n"
+                   "  \"scope\":\"account_name\",\n"
+                   "  \"name\":\"action_name\",\n"
+                   "  \"authorization\":[{ \"actor\":\"account_name\",\"permission\":\"permission_name\" }],\n"
+                   "  \"data\":\"bytes\"\n"
+                   "}"},
+        { 3120005, "Valid transaction should be in the following format:\n"
+                   "{\n"
+                   "  \"ref_block_num\":\"uint16_t\",\n"
+                   "  \"ref_block_prefix\":\"uint32_t\",\n"
+                   "  \"expiration\":\"YYYY-MM-DDThh:mm\",\n"
+                   "  \"region\": \"uint16_t\",\n"
+                   "  \"read_scope\":[ \"account_name\" ],\n"
+                   "  \"write_scope\":[ \"account_name\" ],\n"
+                   "  \"actions\":[{ \n"
+                   "    \"scope\":\"account_name\",\n"
+                   "    \"name\":\"action_name\",\n"
+                   "    \"authorization\":[{ \"actor\":\"acc1\",\"permission\":\"permname1\" }],\n"
+                   "    \"data\":\"445566\"\n"
+                   "  }]\n"
+                   "}"},
+        { 3120006, "Valid abi should be in the following format:\n"
+                   "{\n"
+                   "  \"types\" : [{ \"new_type_name\":\"type_name\", \"type\":\"type_name\" }],\n"
+                   "  \"structs\" : [{ \"name\":\"struct_name\", \"base\":\"struct_name\", \"fields\": [{ \"name\":\"field_name\", \"type\": \"type_name\" }] }],\n"
+                   "  \"actions\" : [{ \"name\":\"action_name\",\"type\":\"type_name\"}],\n"
+                   "  \"tables\" : [{ \"name\":\"table_name\",\"index_type\":\"type_name\",\"key_names\":[ \"field_name\"],\"key_types\":[ \"type_name\" ],\"type\":\"type_name\" }]\n"
+                   "}"}
+};
+
+
 namespace eosio { namespace client { namespace help {
+bool print_recognized_error_code(const fc::exception& e) {
+   // eos recognized error code is from 3000000 to 3999999
+   // refer to libraries/chain/include/eosio/chain/exceptions.hpp
+   if (e.code() >= 3000000 && e.code() <= 3999999) {
+      std::string advice, explanation;
+
+      // Get advice, if any
+      const auto advice_itr = error_advice.find(e.code());
+      if (advice_itr != error_advice.end()) advice = advice_itr->second;
+
+      // Get explanation from log, if any
+      for (auto &log : e.get_log()) {
+         // Check if there's a log to display
+         if (!log.get_message().empty()) {
+            // Localize the message as needed
+            explanation += "\n  " + localized_with_variant(log.get_format().data(), log.get_data());
+         }
+      }
+      if (!explanation.empty()) explanation = std::string("Error Details:") + explanation;
+
+      std::cerr << "\033[31m" << "Error " << e.code() << ": " << e.what() << std::endl;
+      std::cerr << "\033[32m" << advice << std::endl;
+      std::cerr << "\033[33m" << explanation << "\033[0m" << std::endl;
+      return true;
+   }
+   return false;
+}
 
 bool print_help_text(const fc::exception& e) {
+   // Check if the exception has recognized error code
+   if (print_recognized_error_code(e)) return true;
    bool result = false;
    // Large input strings to std::regex can cause SIGSEGV, this is a known bug in libstdc++.
    // See https://stackoverflow.com/questions/36304204/%D0%A1-regex-segfault-on-long-sequences
