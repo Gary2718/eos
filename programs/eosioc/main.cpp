@@ -364,23 +364,15 @@ struct set_account_permission_subcommand {
          } else {
             authority auth;
             if (boost::istarts_with(authorityJsonOrFile, "EOS")) {
-               try {
-                  auth = authority(public_key_type(authorityJsonOrFile));
-               } catch (fc::exception &e) {
-                  throw public_key_type_exception(e.get_log());
-               }
+               EOS_ASSERT_NO_THROW(auth = authority(public_key_type(authorityJsonOrFile)), public_key_type_exception, "");
             } else {
                fc::variant parsedAuthority;
-               try {
-                  if (boost::istarts_with(authorityJsonOrFile, "{")) {
-                     parsedAuthority = fc::json::from_string(authorityJsonOrFile);
-                  } else {
-                     parsedAuthority = fc::json::from_file(authorityJsonOrFile);
-                  }
-                  auth = parsedAuthority.as<authority>();
-               } catch (fc::exception &e) {
-                  throw authority_type_exception(e.get_log());
+               if (boost::istarts_with(authorityJsonOrFile, "{")) {
+                  EOS_ASSERT_NO_THROW(parsedAuthority = fc::json::from_string(authorityJsonOrFile), authority_type_exception, "Fail to parse Authority JSON");
+               } else {
+                  EOS_ASSERT_NO_THROW(parsedAuthority = fc::json::from_file(authorityJsonOrFile), authority_type_exception, "Fail to parse Authority JSON");
                }
+               auth = parsedAuthority.as<authority>();
             }
 
             name parent;
@@ -502,14 +494,9 @@ int main( int argc, char** argv ) {
    add_standard_transaction_options(createAccount);
    createAccount->set_callback([&] {
       public_key_type owner_key, active_key;
-      try {
-         owner_key = public_key_type(owner_key_str);
-         active_key = public_key_type(active_key_str);
-      } catch(fc::exception& e) {
-         throw public_key_type_exception(e.get_log());
-      }
+      EOS_ASSERT_NO_THROW(owner_key = public_key_type(owner_key_str), public_key_type_exception, "Invalid Owner Key");
+      EOS_ASSERT_NO_THROW(active_key = public_key_type(active_key_str), public_key_type_exception, "Invalid Active Key") ;
       create_account(creator, account_name, owner_key, active_key, !skip_sign, staked_deposit);
-
    });
 
    // create producer
@@ -529,11 +516,7 @@ int main( int argc, char** argv ) {
 
       signed_transaction trx;
       public_key_type owner_key;
-      try {
-         owner_key = public_key_type(owner_key_str);
-      } catch(fc::exception& e) {
-         throw public_key_type_exception(e.get_log());
-      }
+      EOS_ASSERT_NO_THROW(owner_key = public_key_type(owner_key_str), public_key_type_exception, "Invalid Owner Key");
       trx.actions.emplace_back(  account_permissions, contracts::setproducer{account_name, owner_key, chain_config{}} );
 
       std::cout << fc::json::to_pretty_string(push_transaction(trx, !skip_sign)) << std::endl;
@@ -766,11 +749,7 @@ int main( int argc, char** argv ) {
       if (abi->count()) {
          contracts::setabi handler;
          handler.account = account;
-         try {
-            handler.abi = fc::json::from_file(abiPath).as<contracts::abi_def>();
-         } catch (fc::exception& e) {
-            throw abi_type_exception(e.get_log());
-         }
+         EOS_ASSERT_NO_THROW(handler.abi = fc::json::from_file(abiPath).as<contracts::abi_def>(), abi_type_exception, "Fail to parse ABI JSON");
 
          trx.actions.emplace_back( vector<chain::permission_level>{{account,"active"}}, handler);
       }
@@ -1024,12 +1003,8 @@ int main( int argc, char** argv ) {
 
    benchmark_setup->set_callback([&]{
       public_key_type owner_key, active_key;
-      try {
-         owner_key = public_key_type(owner_key_str);
-         active_key = public_key_type(active_key_str);
-      } catch(fc::exception& e) {
-         throw public_key_type_exception(e.get_log());
-      }
+      EOS_ASSERT_NO_THROW(owner_key = public_key_type(owner_key_str), public_key_type_exception, "Invalid Owner Key");
+      EOS_ASSERT_NO_THROW(active_key = public_key_type(active_key_str), public_key_type_exception, "Invalid Active Key");
 
       auto controlling_account_arg = fc::mutable_variant_object( "controlling_account", c_account);
       auto response_servants = call(get_controlled_accounts_func, controlling_account_arg);
@@ -1087,7 +1062,6 @@ int main( int argc, char** argv ) {
    benchmark_transfer->add_option("loop", loop, localized("whether or not to loop for ever"));
    add_standard_transaction_options(benchmark_transfer);
    benchmark_transfer->set_callback([&]{
-      EOSC_ASSERT( number_of_accounts >= 2, "must create at least 2 accounts" );
       EOSC_ASSERT( number_of_accounts >= 2, "must create at least 2 accounts" );
 
       std::cerr << localized("Funding ${number_of_accounts} accounts from init", ("number_of_accounts",number_of_accounts)) << std::endl;
@@ -1183,11 +1157,7 @@ int main( int argc, char** argv ) {
    actionsSubcommand->set_callback([&] {
       ilog("Converting argument to binary...");
       fc::variant action_args_var;
-      try {
-         action_args_var = fc::json::from_string(data);
-      } catch (fc::exception& e) {
-         throw action_type_exception(e.get_log());
-      }
+      EOS_ASSERT_NO_THROW(action_args_var = fc::json::from_string(data), action_type_exception, "Fail to parse action JSON");
 
       auto arg= fc::mutable_variant_object
                 ("code", contract)
@@ -1213,11 +1183,7 @@ int main( int argc, char** argv ) {
    trxSubcommand->add_option("transaction", trxJson, localized("The JSON of the transaction to push"))->required();
    trxSubcommand->set_callback([&] {
       fc::variant trx_var;
-      try {
-         trx_var = fc::json::from_string(trxJson);
-      } catch (fc::exception& e) {
-         throw transaction_type_exception(e.get_log());
-      }
+      EOS_ASSERT_NO_THROW(trx_var = fc::json::from_string(trxJson), transaction_type_exception, "Fail to parse transaction JSON");
       auto trx_result = call(push_txn_func, trx_var);
       std::cout << fc::json::to_pretty_string(trx_result) << std::endl;
    });
@@ -1228,11 +1194,7 @@ int main( int argc, char** argv ) {
    trxsSubcommand->add_option("transactions", trxsJson, localized("The JSON array of the transactions to push"))->required();
    trxsSubcommand->set_callback([&] {
       fc::variant trx_var;
-      try {
-         trx_var = fc::json::from_string(trxJson);
-      } catch (fc::exception& e) {
-         throw transaction_type_exception(e.get_log());
-      }
+      EOS_ASSERT_NO_THROW(trx_var = fc::json::from_string(trxJson), transaction_type_exception, "Fail to parse transaction JSON");
       auto trxs_result = call(push_txn_func, trx_var);
       std::cout << fc::json::to_pretty_string(trxs_result) << std::endl;
    });

@@ -97,9 +97,9 @@ auto smatch_to_variant(const std::smatch& smatch) {
 };
 
 const std::map<int64_t, std::string> error_advice = {
-        { 3120001, "Valid name should be less than 13 characters and only contains the following symbol .12345abcdefghijklmnopqrstuvwxyz"},
-        { 3120002, "Valid public key is encoded in base58 and starts with EOS prefix"},
-        { 3120003, "Valid authority should be in the following format:\n"
+        { 3120001, "Name should be less than 13 characters and only contains the following symbol .12345abcdefghijklmnopqrstuvwxyz"},
+        { 3120002, "Public key should be encoded in base58 and starts with EOS prefix"},
+        { 3120003, "Ensure that your authority JSON follows the following format!\n"
                    "{\n"
                    "  \"threshold\":\"uint32_t\",\n"
                    "  \"keys\":[{ \"key\":\"public_key\", \"weight\":\"uint16_t\" }],\n"
@@ -107,15 +107,18 @@ const std::map<int64_t, std::string> error_advice = {
                    "    \"permission\":{ \"actor\":\"account_name\", \"permission\":\"permission_name\" },\n"
                    "    \"weight\":\"uint16_t\n"
                    "  }]\n"
-                   "}"},
-        { 3120004, "Valid action should be in the following format:\n"
+                   "}\n"
+                   "e.g.\n"
                    "{\n"
-                   "  \"scope\":\"account_name\",\n"
-                   "  \"name\":\"action_name\",\n"
-                   "  \"authorization\":[{ \"actor\":\"account_name\",\"permission\":\"permission_name\" }],\n"
-                   "  \"data\":\"bytes\"\n"
-                   "}"},
-        { 3120005, "Valid transaction should be in the following format:\n"
+                   "  \"threshold\":\"1\",\n"
+                   "  \"keys\":[{ \"key\":\"EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV\", \"weight\":\"1\" }],\n"
+                   "  \"accounts\":[{\n"
+                   "    \"permission\":{ \"actor\":\"initb\", \"permission\":\"social\" },\n"
+                   "    \"weight\":\"1\n"
+                   "  }]\n"
+                  "}"},
+        { 3120004, "Ensure that your action JSON follows the contract's abi!" },
+        { 3120005, "Ensure that your transaction JSON follows the following format!\n"
                    "{\n"
                    "  \"ref_block_num\":\"uint16_t\",\n"
                    "  \"ref_block_prefix\":\"uint32_t\",\n"
@@ -124,18 +127,55 @@ const std::map<int64_t, std::string> error_advice = {
                    "  \"read_scope\":[ \"account_name\" ],\n"
                    "  \"write_scope\":[ \"account_name\" ],\n"
                    "  \"actions\":[{ \n"
-                   "    \"scope\":\"account_name\",\n"
+                   "    \"account\":\"account_name\",\n"
                    "    \"name\":\"action_name\",\n"
-                   "    \"authorization\":[{ \"actor\":\"acc1\",\"permission\":\"permname1\" }],\n"
-                   "    \"data\":\"445566\"\n"
+                   "    \"authorization\":[{ \"actor\":\"account_name\",\"permission\":\"permission_name\" }],\n"
+                   "    \"data\":\"bytes\"\n"
+                   "  }]\n"
+                   "}"
+                   "e.g.\n"
+                   "{\n"
+                   "  \"ref_block_num\":\"1000\",\n"
+                   "  \"ref_block_prefix\":\"3463702842\",\n"
+                   "  \"expiration\":\"2018-01-23T01:51:05\",\n"
+                   "  \"region\": \"0\",\n"
+                   "  \"read_scope\":[ \"initb\", \"initc\" ],\n"
+                   "  \"write_scope\":[ \"initb\", \"initc\" ],\n"
+                   "  \"actions\":[{ \n"
+                   "    \"account\":\"eosio\",\n"
+                   "    \"name\":\"transfer\",\n"
+                   "    \"authorization\":[{ \"actor\":\"initb\",\"permission\":\"active\" }],\n"
+                   "    \"data\":\"000000008093dd74000000000094dd74e80300000000000000\"\n"
                    "  }]\n"
                    "}"},
-        { 3120006, "Valid abi should be in the following format:\n"
+        { 3120006, "Ensure that your abi JSON follows the following format!\n"
                    "{\n"
                    "  \"types\" : [{ \"new_type_name\":\"type_name\", \"type\":\"type_name\" }],\n"
-                   "  \"structs\" : [{ \"name\":\"struct_name\", \"base\":\"struct_name\", \"fields\": [{ \"name\":\"field_name\", \"type\": \"type_name\" }] }],\n"
+                   "  \"structs\" : [{ \"name\":\"type_name\", \"base\":\"type_name\", \"fields\": [{ \"name\":\"field_name\", \"type\": \"type_name\" }] }],\n"
                    "  \"actions\" : [{ \"name\":\"action_name\",\"type\":\"type_name\"}],\n"
-                   "  \"tables\" : [{ \"name\":\"table_name\",\"index_type\":\"type_name\",\"key_names\":[ \"field_name\"],\"key_types\":[ \"type_name\" ],\"type\":\"type_name\" }]\n"
+                   "  \"tables\" : [{\n"
+                   "    \"name\":\"table_name\",\n"
+                   "    \"index_type\":\"type_name\",\n"
+                   "    \"key_names\":[ \"field_name\" ],\n"
+                   "    \"key_types\":[ \"type_name\" ],\n"
+                   "    \"type\":\"type_name\" "
+                   "  }]\n"
+                   "}\n"
+                   "e.g.\n"
+                   "{\n"
+                   "  \"types\" : [{ \"new_type_name\":\"account_name\", \"type\":\"name\" }],\n"
+                   "  \"structs\" : [\n"
+                   "    { \"name\":\"foo\", \"base\":\"\", \"fields\": [{ \"name\":\"by\", \"type\": \"account_name\" }] },\n "
+                   "    { \"name\":\"foobar\", \"base\":\"\", \"fields\": [{ \"name\":\"by\", \"type\": \"account_name\" }] }\n"
+                   "  ],\n"
+                   "  \"actions\" : [{ \"name\":\"foo\",\"type\":\"foo\"}],\n"
+                   "  \"tables\" : [{\n"
+                   "    \"name\":\"foobar_table\",\n"
+                   "    \"index_type\":\"i64\",\n"
+                   "    \"key_names\":[ \"by\" ],\n"
+                   "    \"key_types\":[ \"account_name\" ],\n"
+                   "    \"type\":\"foobar\" "
+                   "  }]\n"
                    "}"}
 };
 
@@ -154,16 +194,16 @@ bool print_recognized_error_code(const fc::exception& e) {
       // Get explanation from log, if any
       for (auto &log : e.get_log()) {
          // Check if there's a log to display
-         if (!log.get_message().empty()) {
+         if (!log.get_format().empty()) {
             // Localize the message as needed
             explanation += "\n  " + localized_with_variant(log.get_format().data(), log.get_data());
          }
       }
       if (!explanation.empty()) explanation = std::string("Error Details:") + explanation;
 
-      std::cerr << "\033[31m" << "Error " << e.code() << ": " << e.what() << std::endl;
-      std::cerr << "\033[32m" << advice << std::endl;
-      std::cerr << "\033[33m" << explanation << "\033[0m" << std::endl;
+      std::cerr << "\033[31m" << "Error " << e.code() << ": " << e.what() << "\033[0m";
+      if (!advice.empty()) std::cerr << "\n" << "\033[32m" << advice << "\033[0m";
+      if (!explanation.empty()) std::cerr  << "\n" << "\033[33m" << explanation << "\033[0m" << std::endl;
       return true;
    }
    return false;
